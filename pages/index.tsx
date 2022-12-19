@@ -47,9 +47,17 @@ export default function Home() {
       if (before !== after) return;
 
       let html = el.innerHTML;
-      if (html.endsWith("<br>"))
+      if (html.endsWith("<br>")) {
         html = html.substring(0, html.length - "<br>".length);
-      el.innerHTML = html + "&nbsp;";
+        el.innerHTML = html + "&nbsp;";
+      }
+      if (html.endsWith("&nbsp;</div>")) {
+        return;
+      }
+      if (html.endsWith("</div>")) {
+        html = html.substring(0, html.length - "</div>".length);
+        el.innerHTML = html + "&nbsp;</div>";
+      }
 
       // This moves cursor to end of content.
       const range = document.createRange();
