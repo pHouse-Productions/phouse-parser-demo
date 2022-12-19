@@ -7,16 +7,13 @@ import {
   ParserWithAction,
   plus,
   PStream,
-  range,
   repeat,
-  seq,
   seq1,
   StringPStream,
   sym,
   until,
 } from "phouse-parser";
 import React, { FC, ReactNode, useMemo } from "react";
-import styles from "./mde.module.css";
 
 const symbols = {
   eol: alt(["\n", eof()]),
@@ -26,77 +23,77 @@ const symbols = {
   text: alt([
     sym("bold"),
     sym("italics"),
-    sym("strike_through"),
+    // sym("strike_through"),
     sym("code"),
-    sym("image"),
-    sym("link"),
+    // sym("image"),
+    // sym("link"),
     sym("plain"),
   ]),
 
   bold: seq1(1, ["**", plus(not("**", sym("text"))), "**"]),
   italics: seq1(1, ["*", plus(not("*", sym("text"))), "*"]),
-  strike_through: seq1(1, ["~~", plus(not("~~", sym("text"))), "~~"]),
-  code: seq1(1, ["`", plus(not("`", sym("text"))), "`"]),
-  image: seq(["![", until("]("), until(")")]),
-  link: seq([
-    seq1(1, ["[", plus(not("]", sym("text"))), "]"]),
-    seq1(1, ["(", until(")")]),
-  ]),
+  // strike_through: seq1(1, ["~~", plus(not("~~", sym("text"))), "~~"]),
+  code: seq1(1, ["`", plus(not("`", sym("plain"))), "`"]),
+  // image: seq(["![", until("]("), until(")")]),
+  // link: seq([
+  //   seq1(1, ["[", plus(not("]", sym("text"))), "]"]),
+  //   seq1(1, ["(", until(")")]),
+  // ]),
 
   text_line: seq1(0, [repeat(sym("text")), sym("eol")]),
 
-  tiny_header: seq1(1, ["#### ", sym("text_line")]),
-  small_header: seq1(1, ["### ", sym("text_line")]),
-  medium_header: seq1(1, ["## ", sym("text_line")]),
-  big_header: seq1(1, ["# ", sym("text_line")]),
+  // tiny_header: seq1(1, ["#### ", sym("text_line")]),
+  // small_header: seq1(1, ["### ", sym("text_line")]),
+  // medium_header: seq1(1, ["## ", sym("text_line")]),
+  // big_header: seq1(1, ["# ", sym("text_line")]),
 
   line: alt([
-    sym("tiny_header"),
-    sym("small_header"),
-    sym("medium_header"),
-    sym("big_header"),
+    // sym("tiny_header"),
+    // sym("small_header"),
+    // sym("medium_header"),
+    // sym("big_header"),
     sym("text_line"),
   ]),
 
   block: alt([
-    sym("generic_list"),
-    sym("numbered_list"),
-    sym("quote"),
-    sym("table"),
+    // sym("generic_list"),
+    // sym("numbered_list"),
+    // sym("quote"),
+    // sym("table"),
     sym("code_block"),
     sym("line"),
   ]),
 
-  generic_list: plus(
-    seq1(1, ["* ", repeat(not(alt([sym("eol"), "* "]), sym("line")))])
-  ),
+  // generic_list: plus(
+  //   seq1(1, ["* ", repeat(not(alt([sym("eol"), "* "]), sym("line")))])
+  // ),
 
-  numbered_list_symbol: seq([plus(range("0", "9")), ". "]),
-  numbered_list: plus(
-    seq1(1, [
-      sym("numbered_list_symbol"),
-      repeat(not(alt([sym("eol"), sym("numbered_list_symbol")]), sym("line"))),
-    ])
-  ),
+  // numbered_list_symbol: seq([plus(range("0", "9")), ". "]),
+  // numbered_list: plus(
+  //   seq1(1, [
+  //     sym("numbered_list_symbol"),
+  //     repeat(not(alt([sym("eol"), sym("numbered_list_symbol")]), sym("line"))),
+  //   ])
+  // ),
 
-  quote: seq1(1, [">", repeat(not(alt([sym("eol"), ">"]), sym("line")))]),
+  // quote: seq1(1, [">", repeat(not(alt([sym("eol"), ">"]), sym("line")))]),
 
-  table_row: seq1(1, [
-    "|",
-    plus(seq1(0, [repeat(not("|", sym("text"))), "|"])),
-    repeat(" "),
-    sym("eol"),
-  ]),
-  table: seq([
-    sym("table_row"),
-    seq([
-      "|",
-      plus(seq([plus(alt(["-", " "])), "|"])),
-      repeat(" "),
-      sym("eol"),
-    ]),
-    repeat(sym("table_row")),
-  ]),
+  // table_row: seq1(1, [
+  //   "|",
+  //   plus(seq1(0, [repeat(not("|", sym("text"))), "|"])),
+  //   repeat(" "),
+  //   sym("eol"),
+  // ]),
+  // table: seq([
+  //   sym("table_row"),
+  //   seq([
+  //     "|",
+  //     plus(seq([plus(alt(["-", " "])), "|"])),
+  //     repeat(" "),
+  //     sym("eol"),
+  //   ]),
+  //   repeat(sym("table_row")),
+  // ]),
 
   code_block: seq1(1, ["```", until("```")]),
 
@@ -112,7 +109,12 @@ const actions: Actions = {
     return <>{toReactNode(ps.value())}</>;
   },
   text_line: (x, ps) => {
-    return <div>{toReactNode(ps.value())}</div>;
+    return (
+      <>
+        {toReactNode(ps.value())}
+        <br />
+      </>
+    );
   },
   bold: (x, ps) => {
     return <b>{toReactNode(ps.value())}</b>;
@@ -157,7 +159,7 @@ const toReactNode = (v: unknown): ReactNode => {
   return null;
 };
 
-const parseMde = (str: string) => {
+const parseMarkdown = (str: string) => {
   const keys = Object.keys(symbols) as (keyof typeof symbols)[];
   const parsersWithAction = new Map(
     keys.map((name) => [
@@ -176,9 +178,9 @@ const parseMde = (str: string) => {
   return result?.value() as ReactNode;
 };
 
-export const Mde: FC<{ mde: string }> = ({ mde }) => {
+export const FromMarkdown: FC<{ mde: string }> = ({ mde }) => {
   const node = useMemo(() => {
-    return parseMde(mde);
+    return parseMarkdown(mde);
   }, [mde]);
-  return <div className={styles.container}>{node}</div>;
+  return <>{node}</>;
 };
