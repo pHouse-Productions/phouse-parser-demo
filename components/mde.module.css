@@ -1,0 +1,12 @@
+.container code {
+  background-color: lightgray;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.container pre {
+  background-color: lightgray;
+  margin: 2px 0;
+  padding: 4px;
+  border-radius: 4px;
+}

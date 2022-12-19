@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mde } from "./mde";
+import { Mde } from "../components/mde";
 
 export default function Home() {
   const [mde, setMde] = useState("Hello *world*");

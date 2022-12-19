@@ -16,6 +16,7 @@ import {
   until,
 } from "phouse-parser";
 import React, { FC, ReactNode, useMemo } from "react";
+import styles from "./mde.module.css";
 
 const symbols = {
   eol: alt(["\n", eof()]),
@@ -179,5 +180,5 @@ export const Mde: FC<{ mde: string }> = ({ mde }) => {
   const node = useMemo(() => {
     return parseMde(mde);
   }, [mde]);
-  return <>{node}</>;
+  return <div className={styles.container}>{node}</div>;
 };
