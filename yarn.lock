@@ -1496,6 +1496,11 @@ path-type@^4.0.0:
   resolved "https://registry.yarnpkg.com/path-type/-/path-type-4.0.0.tgz#84ed01c0a7ba380afe09d90a8c180dcd9d03043b"
   integrity sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==
 
+phouse-parser@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/phouse-parser/-/phouse-parser-0.0.2.tgz#ab89c5b811577f306465ec8135a2a60b61a703b0"
+  integrity sha512-a0IkOmgNSYQUjWXsLGHsv8fEj/CLMKeOWPe3l6yEmjaCa8hatPBWUrcJk2jKwYhKg7DYnvAC1y78ofw1bGDzHg==
+
 picocolors@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/picocolors/-/picocolors-1.0.0.tgz#cb5bdc74ff3f51892236eaf79d68bc44564ab81c"
