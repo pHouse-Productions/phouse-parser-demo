@@ -2,8 +2,6 @@ import {
   alt,
   anyChar,
   chars,
-  join,
-  literal,
   not,
   ParserContext,
   ParserWithAction,
@@ -14,12 +12,10 @@ import {
   StringPStream,
   substring,
   sym,
-  until,
 } from "phouse-parser";
 
 const symbols = {
-  entity: alt([sym("space")]),
-  space: literal("&nbsp;"),
+  entity: seq1(1, ["&", alt(["nbsp", "lt", "gt", "amp"]), ";"]),
 
   content: repeat(alt([sym("entity"), sym("tag"), sym("text")])),
 
@@ -37,8 +33,16 @@ const symbols = {
   bold: seq1(1, ["<b>", sym("content"), "</b>"]),
   italic: seq1(1, ["<i>", sym("content"), "</i>"]),
   div: seq1(1, ["<div>", sym("content"), "</div>"]),
-  code: seq1(1, ["<code>", join(until("</code>"))]),
-  pre: seq1(1, ["<pre>", repeat(alt([sym("text"), sym("br")])), "</pre>"]),
+  code: seq1(1, [
+    "<code>",
+    repeat(alt([sym("text"), sym("entity"), sym("br")])),
+    "</code>",
+  ]),
+  pre: seq1(1, [
+    "<pre>",
+    repeat(alt([sym("text"), sym("entity"), sym("br")])),
+    "</pre>",
+  ]),
 
   START: sym("content"),
 };
@@ -51,17 +55,17 @@ const actions: Actions = {
   START: (x, ps) => {
     return toString(ps.value());
   },
-  // space: () => " ",
-  // newLine: () => "\n",
-  // text_line: (x, ps) => {
-  //   console.log(ps.value());
-  //   return toString(ps.value()) + "\n\n";
-  // },
   div: (x, ps) => {
     const str = toString(ps.value()).trim();
     return str + "\n";
   },
-  space: () => " ",
+  entity: (x, ps) => {
+    if (ps.value() === "nbsp") return " ";
+    if (ps.value() === "gt") return ">";
+    if (ps.value() === "lt") return "<";
+    if (ps.value() === "amp") return "&";
+    return "";
+  },
   br: () => "\n",
   bold: (x, ps) => {
     const str = toString(ps.value()).trim();

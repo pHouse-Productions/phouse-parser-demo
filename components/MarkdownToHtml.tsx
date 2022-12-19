@@ -109,12 +109,8 @@ const actions: Actions = {
     return <>{toReactNode(ps.value())}</>;
   },
   text_line: (x, ps) => {
-    return (
-      <>
-        {toReactNode(ps.value())}
-        <br />
-      </>
-    );
+    const node = toReactNode(ps.value());
+    return !node ? <br /> : <div>{node}</div>;
   },
   bold: (x, ps) => {
     return <b>{toReactNode(ps.value())}</b>;
@@ -147,13 +143,13 @@ const toReactNode = (v: unknown): ReactNode => {
         children.push(c);
       }
     }
-    return (
+    return children.length ? (
       <>
         {children.map((c, i) => (
           <React.Fragment key={i}>{c}</React.Fragment>
         ))}
       </>
-    );
+    ) : null;
   }
   if (React.isValidElement(v)) return v;
   return null;
