@@ -2,17 +2,54 @@ import {
   alt,
   anyChar,
   chars,
+  join,
   not,
+  notChars,
   ParserContext,
   ParserWithAction,
   plus,
   PStream,
   repeat,
+  repeat0,
   seq1,
+  seqN,
   StringPStream,
   substring,
   sym,
 } from "phouse-parser";
+
+const attributes = repeat(
+  seqN(
+    [0, 2],
+    [
+      join(seq1(1, [repeat0(" ", {}), plus(notChars("=>"))])),
+      '="',
+      join(repeat(notChars('"'))),
+      '"',
+    ]
+  ),
+  plus(" ")
+);
+const normalTag = (tag: string) =>
+  seqN(
+    [
+      3, // attributes
+      6, // content
+    ],
+    [
+      "<",
+      tag,
+      plus(" "),
+      attributes,
+      repeat0(" ", {}),
+      ">",
+      sym("content"),
+      "</",
+      tag,
+      ">",
+    ]
+  );
+// const selfClosedTag = (tag: string) => seq1(2, ["<", tag, attributes, "/>"]);
 
 const symbols = {
   entity: seq1(1, ["&", alt(["nbsp", "lt", "gt", "amp"]), ";"]),
@@ -28,6 +65,7 @@ const symbols = {
     sym("div"),
     sym("code"),
     sym("pre"),
+    sym("a"),
   ]),
   br: alt(["<br/>", "<br>"]),
   bold: seq1(1, ["<b>", sym("content"), "</b>"]),
@@ -43,6 +81,7 @@ const symbols = {
     repeat(alt([sym("text"), sym("entity"), sym("br")])),
     "</pre>",
   ]),
+  a: normalTag("a"),
 
   START: sym("content"),
 };
@@ -85,6 +124,16 @@ const actions: Actions = {
   code: (x, ps) => {
     const str = toString(ps.value()).trim();
     return str ? `\`${str}\`` : "";
+  },
+  a: (x, ps) => {
+    const [attributes, content] = ps.value() as [[string, string][], unknown];
+
+    const userId = attributes.find((a) => a[0] === "data-user-id")?.[1];
+    if (userId) {
+      return `@USER-${userId}`;
+    }
+
+    return "";
   },
 };
 

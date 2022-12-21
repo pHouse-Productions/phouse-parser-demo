@@ -2,12 +2,15 @@ import {
   alt,
   anyChar,
   eof,
+  join,
   not,
   ParserContext,
   ParserWithAction,
   plus,
   PStream,
+  range,
   repeat,
+  seq,
   seq1,
   StringPStream,
   sym,
@@ -27,6 +30,7 @@ const symbols = {
     sym("code"),
     // sym("image"),
     // sym("link"),
+    sym("userMention"),
     sym("plain"),
   ]),
 
@@ -34,6 +38,23 @@ const symbols = {
   italics: seq1(1, ["*", plus(not("*", sym("text"))), "*"]),
   // strike_through: seq1(1, ["~~", plus(not("~~", sym("text"))), "~~"]),
   code: seq1(1, ["`", plus(not("`", sym("plain"))), "`"]),
+
+  hex: alt([range("0", "9"), range("a", "f"), range("A", "F")]),
+  uuid: join(
+    seq([
+      join(repeat(sym("hex"), undefined, 8, 8)),
+      "-",
+      join(repeat(sym("hex"), undefined, 4, 4)),
+      "-",
+      join(repeat(sym("hex"), undefined, 4, 4)),
+      "-",
+      join(repeat(sym("hex"), undefined, 4, 4)),
+      "-",
+      join(repeat(sym("hex"), undefined, 12, 12)),
+    ])
+  ),
+  userMention: seq1(1, ["@USER-", sym("uuid")]),
+
   // image: seq(["![", until("]("), until(")")]),
   // link: seq([
   //   seq1(1, ["[", plus(not("]", sym("text"))), "]"]),
@@ -111,6 +132,18 @@ const actions: Actions = {
   text_line: (x, ps) => {
     const node = toReactNode(ps.value());
     return !node ? <br /> : <div>{node}</div>;
+  },
+  userMention: (x, ps) => {
+    const userId = ps.value() as string;
+    return (
+      <a
+        href="https://google.com"
+        contentEditable={false}
+        data-user-id={userId}
+      >
+        @Joe
+      </a>
+    );
   },
   bold: (x, ps) => {
     return <b>{toReactNode(ps.value())}</b>;
