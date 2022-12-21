@@ -1,16 +1,3 @@
-.mde_container code {
-  background-color: lightgray;
-  padding: 0 4px;
-  border-radius: 4px;
-}
-
-.mde_container pre {
-  background-color: lightgray;
-  margin: 2px 0;
-  padding: 4px;
-  border-radius: 4px;
-}
-
 .compare_container {
   display: flex;
 }
@@ -20,4 +7,9 @@
   padding: 4px;
   margin: 20px;
   min-height: 400px;
+}
+
+.editor {
+  min-height: 400px;
+  padding: 4px;
 }

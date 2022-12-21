@@ -140,7 +140,6 @@ const actions: Actions = {
 const toString = (v: unknown): string => {
   if (typeof v === "string") return v;
   if (Array.isArray(v)) return v.join("");
-  console.log(v);
   return "";
 };
 

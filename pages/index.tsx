@@ -1,17 +1,35 @@
-import { KeyboardEvent, useCallback, useEffect, useState } from "react";
+import {
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { htmlToMarkdown } from "../components/HtmlToMarkdown";
 import { FromMarkdown } from "../components/MarkdownToHtml";
 import styles from "./index.module.css";
 
+const isCursorAtEnd = (el: Node) => {
+  let sel = window.getSelection();
+  if (!sel?.rangeCount) return false;
+  let selRange = sel.getRangeAt(0);
+  let testRange = selRange.cloneRange();
+  testRange.selectNodeContents(el);
+  testRange.setStart(selRange.endContainer, selRange.endOffset);
+  return testRange.toString() == "";
+};
+
+const focusCursorAtEnd = (el: Node) => {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+};
+
 export default function Home() {
-  const [markdownInput, setMarkdownInput] = useState("Hello *world*");
-
-  const [ceHtml, setCeHtml] = useState("");
-  useEffect(() => {
-    markdownInput;
-    setCeHtml("");
-  }, [markdownInput]);
-
   type InputStyle = {
     bold?: boolean;
     italic?: boolean;
@@ -24,7 +42,6 @@ export default function Home() {
       window.getSelection()?.getRangeAt(0).endContainer || null;
     const inputStyle: InputStyle = {};
     while (el && el !== ceDiv) {
-      console.log(el.nodeName);
       if (el.nodeName === "I") inputStyle.italic = true;
       if (el.nodeName === "B") inputStyle.bold = true;
       if (el.nodeName === "PRE") inputStyle.codeBlock = true;
@@ -59,57 +76,149 @@ export default function Home() {
         el.innerHTML = html + "&nbsp;</div>";
       }
 
-      // This moves cursor to end of content.
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      range.collapse(false);
-      const selection = window.getSelection();
-      if (!selection) return;
-      selection.removeAllRanges();
-      selection.addRange(range);
-
+      focusCursorAtEnd(el);
       updateIcons(el);
     },
     [updateIcons]
   );
 
+  const ceRef = useRef<HTMLDivElement>(null);
+  const [ceInProgress, setCeInProgress] = useState("Hello *world*");
+  const markdown = useMemo(() => htmlToMarkdown(ceInProgress), [ceInProgress]);
+  const [markdownToAppend, setMarkdownToAppend] = useState("");
+
+  useEffect(() => {
+    if (!ceRef.current) return;
+    if (ceRef.current.innerHTML === ceInProgress) return;
+    ceRef.current.innerHTML = ceInProgress;
+  }, [ceInProgress]);
+
   return (
     <>
-      <h2>MDE Example</h2>
-      <div className={styles.compare_container}>
-        <textarea
-          className={styles.compare_pane}
-          onChange={(e) => {
-            setMarkdownInput(e.target.value);
-          }}
-          value={markdownInput}
-        />
+      {markdownToAppend ? (
         <div
-          className={[styles.mde_container, styles.compare_pane].join(" ")}
+          style={{ display: "none" }}
+          ref={(e) => {
+            if (!e) return;
+
+            // If it's just a single line, use the contents of the one line so
+            // a line break isn't inserted
+            let el: Element = e;
+            while (el.tagName === "DIV" && el.children.length === 1) {
+              el = el.children[0];
+            }
+
+            setMarkdownToAppend("");
+
+            // If focus is in the contenteditable then paste where the last
+            // selection was. Otherwise append to the contenteditable.
+            const parent = ceRef.current;
+            if (!parent) return;
+            let appendNode = window.getSelection()?.focusNode;
+            while (appendNode) {
+              if (appendNode === parent) {
+                appendNode = window.getSelection()?.focusNode;
+                break;
+              }
+              appendNode = appendNode.parentNode;
+            }
+
+            if (!isCursorAtEnd(parent) && appendNode && appendNode !== parent) {
+              const start =
+                window.getSelection()?.getRangeAt(0).startOffset || 0;
+              const end =
+                window.getSelection()?.getRangeAt(0).endOffset || start;
+
+              const pre = document.createTextNode(
+                appendNode.textContent?.substring(0, start) || ""
+              );
+              const post = document.createTextNode(
+                " " + (appendNode.textContent?.substring(end) || "")
+              );
+
+              appendNode.parentNode?.insertBefore(post, appendNode);
+              appendNode.parentNode?.insertBefore(el, post);
+              appendNode.parentNode?.insertBefore(pre, el);
+              appendNode.parentNode?.removeChild(appendNode);
+
+              setCeInProgress(parent.innerHTML);
+              window.getSelection()?.setPosition(post, 1);
+              return;
+            }
+
+            const html = (() => {
+              const emptyLine = "<div><br></div>";
+              if (ceInProgress.endsWith(emptyLine)) {
+                return (
+                  ceInProgress.substring(
+                    0,
+                    ceInProgress.length - emptyLine.length
+                  ) + `<div>${el.outerHTML}&nbsp;</div>`
+                );
+              }
+
+              const close = "</div>";
+              if (ceInProgress.endsWith(close)) {
+                return (
+                  ceInProgress.substring(
+                    0,
+                    ceInProgress.length - close.length
+                  ) + `${el.outerHTML}&nbsp;</div>`
+                );
+              }
+
+              return ceInProgress + el.outerHTML + "&nbsp;";
+            })();
+
+            parent.innerHTML = html;
+            setCeInProgress(html);
+            focusCursorAtEnd(parent);
+          }}
+        >
+          {<FromMarkdown mde={markdownToAppend} />}
+        </div>
+      ) : null}
+      <h1>Rich Text Editor</h1>
+      <div className={styles.compare_pane}>
+        <h3>Editor</h3>
+        <div
+          className={styles.editor}
+          ref={ceRef}
           contentEditable
           suppressContentEditableWarning
-          onBlur={(e) =>
-            setMarkdownInput(htmlToMarkdown(e.currentTarget.innerHTML))
-          }
-          onFocus={(e) => {
-            setCeHtml(e.currentTarget.innerHTML);
+          onPaste={(e) => {
+            e.preventDefault();
+            var text = e.clipboardData.getData("text/plain");
+            document.execCommand("insertHTML", false, text);
           }}
           onSelect={(e) => {
             updateIcons(e.currentTarget);
           }}
-          dangerouslySetInnerHTML={ceHtml ? { __html: ceHtml } : undefined}
-          onKeyDown={maybeEscapeFromContentType}
+          // onKeyDown={maybeEscapeFromContentType}
           onKeyUp={(e) => {
             updateIcons(e.currentTarget);
+            setCeInProgress(e.currentTarget.innerHTML);
           }}
-        >
-          {ceHtml ? null : <FromMarkdown mde={markdownInput} />}
-        </div>
+        ></div>
       </div>
+      <pre>{JSON.stringify(inputStyle, null, 2)}</pre>
+      <button
+        onClick={() => {
+          setMarkdownToAppend("@USER-daa968aa-e7ad-4d99-98a6-c5d8a468b0e5");
+        }}
+      >
+        Add @
+      </button>
 
       <div className={styles.compare_container}>
-        <div className={styles.compare_pane}>{ceHtml}</div>
-        <pre>{JSON.stringify(inputStyle, null, 2)}</pre>
+        <div className={styles.compare_pane}>
+          <h2>Markdown</h2>
+          <pre style={{ whiteSpace: "break-spaces" }}>{markdown}</pre>
+        </div>
+        <div className={styles.compare_pane}>
+          <h2>HTML</h2>
+          <FromMarkdown mde={markdown} />
+        </div>
       </div>
     </>
   );
