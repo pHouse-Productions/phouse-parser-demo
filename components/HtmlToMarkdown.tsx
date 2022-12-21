@@ -96,7 +96,7 @@ const actions: Actions = {
   },
   div: (x, ps) => {
     const str = toString(ps.value()).trim();
-    return str + "\n";
+    return "\n" + str;
   },
   entity: (x, ps) => {
     if (ps.value() === "nbsp") return " ";
