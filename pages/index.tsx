@@ -1,14 +1,64 @@
-import {
-  KeyboardEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { htmlToMarkdown } from "../components/HtmlToMarkdown";
 import { FromMarkdown } from "../components/MarkdownToHtml";
 import styles from "./index.module.css";
+
+const getDeepestUnstyledOnlyChild = (el: Element) => {
+  while (el.tagName === "DIV" && el.children.length === 1) {
+    el = el.children[0];
+  }
+  return el;
+};
+
+const getNodeAtCursorPositionInContainer = (parent: Element) => {
+  const focusedNode = window.getSelection()?.focusNode;
+  if (!focusedNode) return null;
+  let n = focusedNode;
+  while (n) {
+    if (n === parent) return focusedNode;
+    n = n.parentNode as Node;
+  }
+  return null;
+};
+
+// Assumes cursor is in the element given.
+const insertAtCursor = (from: Element, to: Node) => {
+  const start = window.getSelection()?.getRangeAt(0).startOffset || 0;
+  const end = window.getSelection()?.getRangeAt(0).endOffset || start;
+
+  const pre = document.createTextNode(
+    to.textContent?.substring(0, start) || ""
+  );
+  const post = document.createTextNode(to.textContent?.substring(end) || "");
+
+  to.parentNode?.insertBefore(post, to);
+  to.parentNode?.insertBefore(from, post);
+  to.parentNode?.insertBefore(pre, from);
+  to.parentNode?.removeChild(to);
+};
+
+const isEmptyLine = (e: Element) => {
+  return (
+    e.tagName === "DIV" &&
+    e.children.length === 1 &&
+    e.children[0].tagName === "BR"
+  );
+};
+
+const appendContent = (from: Element, to: Element) => {
+  const lastChild = to.children[to.children.length - 1] || to;
+  if (isEmptyLine(lastChild)) {
+    lastChild.replaceChildren(from);
+    return;
+  }
+
+  if (lastChild.tagName === "DIV") {
+    lastChild.append(from);
+    return;
+  }
+
+  to.append(from);
+};
 
 const isCursorAtEnd = (el: Node) => {
   let sel = window.getSelection();
@@ -51,37 +101,6 @@ export default function Home() {
     setInputStyle(inputStyle);
   }, []);
 
-  const maybeEscapeFromContentType = useCallback(
-    async (e: KeyboardEvent<HTMLDivElement>) => {
-      // Need to handle a user being at the end of the input and getting
-      // stuck in a formatted block.
-      if (!["ArrowRight"].includes(e.key)) return;
-      const el = e.currentTarget;
-
-      const before = window.getSelection()?.getRangeAt(0);
-      await new Promise((r) => setTimeout(r, 10));
-      const after = window.getSelection()?.getRangeAt(0);
-      if (before !== after) return;
-
-      let html = el.innerHTML;
-      if (html.endsWith("<br>")) {
-        html = html.substring(0, html.length - "<br>".length);
-        el.innerHTML = html + "&nbsp;";
-      }
-      if (html.endsWith("&nbsp;</div>")) {
-        return;
-      }
-      if (html.endsWith("</div>")) {
-        html = html.substring(0, html.length - "</div>".length);
-        el.innerHTML = html + "&nbsp;</div>";
-      }
-
-      focusCursorAtEnd(el);
-      updateIcons(el);
-    },
-    [updateIcons]
-  );
-
   const ceRef = useRef<HTMLDivElement>(null);
   const [ceInProgress, setCeInProgress] = useState("Hello *world*");
   const markdown = useMemo(() => htmlToMarkdown(ceInProgress), [ceInProgress]);
@@ -100,82 +119,26 @@ export default function Home() {
           style={{ display: "none" }}
           ref={(e) => {
             if (!e) return;
+            const ce = ceRef.current;
+            if (!ce) return;
 
             // If it's just a single line, use the contents of the one line so
             // a line break isn't inserted
-            let el: Element = e;
-            while (el.tagName === "DIV" && el.children.length === 1) {
-              el = el.children[0];
+            const el = getDeepestUnstyledOnlyChild(e);
+            const focusedChild = getNodeAtCursorPositionInContainer(ce);
+            if (!focusedChild || isCursorAtEnd(ce)) {
+              appendContent(el, ce);
+              focusCursorAtEnd(ce);
+            } else {
+              insertAtCursor(el, focusedChild);
+              window.getSelection()?.setPosition(el.nextSibling, 0);
             }
 
+            setCeInProgress(ce.innerHTML);
             setMarkdownToAppend("");
-
-            // If focus is in the contenteditable then paste where the last
-            // selection was. Otherwise append to the contenteditable.
-            const parent = ceRef.current;
-            if (!parent) return;
-            let appendNode = window.getSelection()?.focusNode;
-            while (appendNode) {
-              if (appendNode === parent) {
-                appendNode = window.getSelection()?.focusNode;
-                break;
-              }
-              appendNode = appendNode.parentNode;
-            }
-
-            if (!isCursorAtEnd(parent) && appendNode && appendNode !== parent) {
-              const start =
-                window.getSelection()?.getRangeAt(0).startOffset || 0;
-              const end =
-                window.getSelection()?.getRangeAt(0).endOffset || start;
-
-              const pre = document.createTextNode(
-                appendNode.textContent?.substring(0, start) || ""
-              );
-              const post = document.createTextNode(
-                " " + (appendNode.textContent?.substring(end) || "")
-              );
-
-              appendNode.parentNode?.insertBefore(post, appendNode);
-              appendNode.parentNode?.insertBefore(el, post);
-              appendNode.parentNode?.insertBefore(pre, el);
-              appendNode.parentNode?.removeChild(appendNode);
-
-              setCeInProgress(parent.innerHTML);
-              window.getSelection()?.setPosition(post, 1);
-              return;
-            }
-
-            const html = (() => {
-              const emptyLine = "<div><br></div>";
-              if (ceInProgress.endsWith(emptyLine)) {
-                return (
-                  ceInProgress.substring(
-                    0,
-                    ceInProgress.length - emptyLine.length
-                  ) + `<div>${el.outerHTML}&nbsp;</div>`
-                );
-              }
-
-              const close = "</div>";
-              if (ceInProgress.endsWith(close)) {
-                return (
-                  ceInProgress.substring(
-                    0,
-                    ceInProgress.length - close.length
-                  ) + `${el.outerHTML}&nbsp;</div>`
-                );
-              }
-
-              return ceInProgress + el.outerHTML + "&nbsp;";
-            })();
-
-            parent.innerHTML = html;
-            setCeInProgress(html);
-            focusCursorAtEnd(parent);
           }}
         >
-          {<FromMarkdown mde={markdownToAppend} />}
+          <FromMarkdown mde={markdownToAppend} />
         </div>
       ) : null}
       <h1>Rich Text Editor</h1>
