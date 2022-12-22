@@ -14,7 +14,6 @@ import {
   seq1,
   StringPStream,
   sym,
-  until,
 } from "phouse-parser";
 import React, { FC, ReactNode, useMemo } from "react";
 
@@ -30,14 +29,18 @@ const symbols = {
     sym("code"),
     // sym("image"),
     // sym("link"),
-    sym("userMention"),
+    sym("mention"),
     sym("plain"),
   ]),
 
   bold: seq1(1, ["**", plus(not("**", sym("text"))), "**"]),
   italics: seq1(1, ["*", plus(not("*", sym("text"))), "*"]),
   // strike_through: seq1(1, ["~~", plus(not("~~", sym("text"))), "~~"]),
-  code: seq1(1, ["`", plus(not("`", sym("plain"))), "`"]),
+  code: seq1(1, [
+    "`",
+    plus(not(alt(["`", sym("mention")]), sym("plain"))),
+    "`",
+  ]),
 
   hex: alt([range("0", "9"), range("a", "f"), range("A", "F")]),
   uuid: join(
@@ -53,6 +56,8 @@ const symbols = {
       join(repeat(sym("hex"), undefined, 12, 12)),
     ])
   ),
+
+  mention: alt([sym("userMention")]),
   userMention: seq1(1, ["@USER-", sym("uuid")]),
 
   // image: seq(["![", until("]("), until(")")]),
@@ -116,7 +121,11 @@ const symbols = {
   //   repeat(sym("table_row")),
   // ]),
 
-  code_block: seq1(1, ["```", until("```")]),
+  code_block: seq1(1, [
+    "```",
+    plus(not(alt(["```", sym("mention")]), anyChar())),
+    "```",
+  ]),
 
   START: repeat(alt([sym("block"), sym("line")])),
 };
