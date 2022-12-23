@@ -1,7 +1,24 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { htmlToMarkdown } from "../components/HtmlToMarkdown";
 import { FromMarkdown } from "../components/MarkdownToHtml";
 import styles from "./index.module.css";
+
+const isApple = () => navigator.userAgent.includes("Macintosh");
+
+const preventFormattingChange = (e: KeyboardEvent<HTMLDivElement>) => {
+  const isModifier = isApple() ? e.metaKey : e.ctrlKey;
+  if (!isModifier) return false;
+  if (!["b", "i", "u"].includes(e.key.toLocaleLowerCase())) return false;
+  e.preventDefault();
+  return true;
+};
 
 const getDeepestUnstyledOnlyChild = (el: Element) => {
   while (el.tagName === "DIV" && el.children.length === 1) {
@@ -157,7 +174,7 @@ export default function Home() {
           onSelect={(e) => {
             updateIcons(e.currentTarget);
           }}
-          // onKeyDown={maybeEscapeFromContentType}
+          onKeyDown={preventFormattingChange}
           onKeyUp={(e) => {
             updateIcons(e.currentTarget);
             setCeInProgress(e.currentTarget.innerHTML);
