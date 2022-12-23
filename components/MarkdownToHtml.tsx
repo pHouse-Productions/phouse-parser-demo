@@ -1,3 +1,4 @@
+import isEqual from "fast-deep-equal";
 import {
   alt,
   anyChar,
@@ -171,6 +172,8 @@ const actions: Actions = {
   },
 };
 
+export type MarkdownTypes = keyof Actions;
+
 const toReactNode = (v: unknown): ReactNode => {
   if (typeof v === "string") return v;
   if (Array.isArray(v)) {
@@ -221,4 +224,135 @@ export const FromMarkdown: FC<{ mde: string }> = ({ mde }) => {
     return parseMarkdown(mde);
   }, [mde]);
   return <>{node}</>;
+};
+
+type Symbol = keyof typeof symbols;
+type MarkdownToEditorActions = Partial<{
+  [k in Symbol]: (x: ParserContext, ps: PStream) => unknown;
+}>;
+const markdownToEditorActions: MarkdownToEditorActions = {
+  START: (x, ps) => {
+    let v = ps.value();
+    console.log(JSON.stringify(v, null, 2));
+    if (!Array.isArray(v)) {
+      console.log("dalkfasjf");
+      return;
+    }
+    return v.flat();
+  },
+  text_line: (x, ps) => {
+    const v = ps.value();
+    if (Array.isArray(v))
+      return [{ type: "paragraph", children: collapseChildren(v.flat()) }];
+    console.log("here???");
+  },
+  // userMention: (x, ps) => {
+  //   const userId = ps.value() as string;
+  //   return (
+  //     <a
+  //       href="https://google.com"
+  //       contentEditable={false}
+  //       data-user-id={userId}
+  //     >
+  //       @Joe
+  //     </a>
+  //   );
+  // },
+  bold: (x, ps) => {
+    const v = ps.value();
+    if (!Array.isArray(v)) {
+      console.log("not array?");
+      return;
+    }
+    return v.map((o) => ({ ...o, isBold: true }));
+  },
+  text: (x, ps) => {
+    const v = ps.value();
+    if (typeof v === "string") return { type: "text", text: ps.value() };
+    if (Array.isArray(v)) return v.flat();
+    return v;
+  },
+  italics: (x, ps) => {
+    const v = ps.value();
+    if (!Array.isArray(v)) {
+      console.log("not array?");
+      return;
+    }
+    return v.map((o) => ({ ...o, isItalic: true }));
+  },
+  // code_block: (x, ps) => {
+  //   return <pre>{toReactNode(ps.value())}</pre>;
+  // },
+  code: (x, ps) => {
+    const v = ps.value();
+    if (!Array.isArray(v)) {
+      console.log("not array?");
+      return;
+    }
+    return { type: "code", text: "`" + v.join("") + "`" };
+  },
+};
+
+const collapseChildren = (a: any[]) => {
+  const r = [];
+  for (const o of a) {
+    if (!r.length) {
+      r.push(o);
+      continue;
+    }
+
+    const { text: lastText, ...lastRest } = r[r.length - 1];
+    const { text, ...rest } = o;
+    if (isEqual(lastRest, rest)) {
+      r[r.length - 1].text += text;
+      continue;
+    }
+
+    r.push(o);
+  }
+
+  if (!r.length) r.push({ type: "text", text: "" });
+
+  return r;
+};
+
+// const toEditorNode = (v: unknown): EditorNode[] => {
+//   if (typeof v === "string") return [{ type: "text", text: v }];
+//   if (Array.isArray(v)) {
+//     return v
+//       .map(toEditorNode)
+//       .flat()
+//       .reduce<EditorNode[]>((a, c) => {
+//         const lastChild = a[a.length - 1];
+//         if (c.type === "text" && lastChild?.type === "text") {
+//           lastChild.text += c.text;
+//         } else {
+//           a.push(c);
+//         }
+//         return a;
+//       }, []);
+//   }
+//   if (typeof v === "object") {
+//     return [v as EditorNode];
+//   }
+//   return [];
+// };
+
+export const parseMarkdownToEditor = (str: string) => {
+  const keys = Object.keys(symbols) as (keyof typeof symbols)[];
+  const parsersWithAction = new Map(
+    keys.map((name) => [
+      name,
+      markdownToEditorActions[name]
+        ? new ParserWithAction(symbols[name], markdownToEditorActions[name]!)
+        : symbols[name],
+    ])
+  );
+
+  const ps = new StringPStream({ pos: 0, str, value: null });
+  const start = parsersWithAction.get("START");
+  const x = new ParserContext();
+  x.set("grammarMap", parsersWithAction);
+  const result = start?.parse(x, ps);
+  return result?.value() as ReactNode;
 };

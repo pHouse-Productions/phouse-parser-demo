@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BaseElement, createEditor, Descendant } from "slate";
+import {
+  DefaultElement,
+  Editable,
+  RenderElementProps,
+  Slate,
+  withReact,
+} from "slate-react";
 import { htmlToMarkdown } from "../components/HtmlToMarkdown";
-import { FromMarkdown } from "../components/MarkdownToHtml";
+import {
+  FromMarkdown,
+  MarkdownTypes,
+  parseMarkdownToEditor,
+} from "../components/MarkdownToHtml";
 import styles from "./index.module.css";
 
 const getDeepestUnstyledOnlyChild = (el: Element) => {
@@ -112,6 +124,39 @@ export default function Home() {
     ceRef.current.innerHTML = ceInProgress;
   }, [ceInProgress]);
 
+  const editor = useMemo(() => withReact(createEditor()), []);
+  const initialValue = useMemo(() => {
+    return parseMarkdownToEditor(
+      `
+**yo** there
+
+this \`*isCode*\`
+
+*nice* man
+    `.trim()
+    ) as unknown as Descendant[];
+  }, []);
+
+  const renderElement = useCallback<(props: RenderElementProps) => JSX.Element>(
+    (props) => {
+      console.log(props.element);
+      return <DefaultElement {...props} />;
+      // switch (e.type) {
+      //   case "text_line":
+      //     return e.children.length ? (
+      //       <div {...props.attributes}>{props.children}</div>
+      //     ) : (
+      //       <br {...props.attributes} />
+      //     );
+      //   case "bold":
+      //     return <b {...props.attributes}>{props.children}</b>;
+      //   default:
+      //     return <DefaultElement {...props} />;
+      // }
+    },
+    []
+  );
+
   return (
     <>
       {markdownToAppend ? (
@@ -183,6 +228,66 @@ export default function Home() {
           <FromMarkdown mde={markdown} />
         </div>
       </div>
+
+      <Slate editor={editor} value={initialValue}>
+        <Editable
+          renderElement={renderElement}
+          renderLeaf={({ attributes, children, leaf: leaf_ }) => {
+            const leaf = leaf_ as any;
+            return leaf.type === "code" ? (
+              <code contentEditable={false} {...attributes}>
+                {children}
+              </code>
+            ) : (
+              <span
+                {...attributes}
+                style={{
+                  fontWeight: leaf.isBold ? "bold" : "normal",
+                  fontStyle: leaf.isItalic ? "italic" : "normal",
+                }}
+              >
+                {children}
+              </span>
+            );
+          }}
+          placeholder="Enter some plain text..."
+          onKeyDown={(event) => {
+            console.log(editor.getFragment());
+            if (event.key === "*") {
+              event.preventDefault();
+              // editor.insertFragment([
+              //   { children: [{ text: "**" }], type: "code" },
+              // ]);
+              // Transform.move(editor, { distance: 1, reverse: true });
+              return;
+            }
+          }}
+        />
+      </Slate>
     </>
   );
 }
+
+type MdElement = BaseElement & { type?: MarkdownTypes };
+
+const CodeElement = (props: RenderElementProps) => {
+  props.element;
+  return (
+    <pre {...props.attributes}>
+      <code>{props.children}</code>
+    </pre>
+  );
+};
+
+const MdeElement = (props: RenderElementProps) => {
+  console.log("here");
+  return (
+    <div {...props.attributes}>
+      <FromMarkdown mde={(props as any).text} />
+    </div>
+  );
+};
+
+// markdown -> editor
+// editor -> markdown
+// markdown -> html
