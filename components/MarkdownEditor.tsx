@@ -87,25 +87,22 @@ const markdownToEditorActions: MarkdownToEditorActions = {
 };
 
 const collapseChildren = (a: any[]) => {
+  // At least one element is required for slate to be happy.
   if (!a.length) return [{ text: "" }];
-  return a.reduce<any[]>(
-    (r, o) => {
-      if (!r.length) return [o];
-      const { text: lastText, ...lastRest } = r[r.length - 1];
-      const { text, ...rest } = o;
-      if (
-        text !== undefined &&
-        lastText !== undefined &&
-        isEqual(lastRest, rest)
-      ) {
-        r[r.length - 1].text += text;
-        return r;
-      }
-      return r.concat(o);
-    },
-    // At least one element is required for slate to be happy.
-    []
-  );
+  return a.reduce<any[]>((r, o) => {
+    if (!r.length) return [o];
+    const { text: lastText, ...lastRest } = r[r.length - 1];
+    const { text, ...rest } = o;
+    if (
+      text !== undefined &&
+      lastText !== undefined &&
+      isEqual(lastRest, rest)
+    ) {
+      r[r.length - 1].text += text;
+      return r;
+    }
+    return r.concat(o);
+  }, []);
 };
 
 export const markdownToEditorData = (str: string): Descendant[] => {
