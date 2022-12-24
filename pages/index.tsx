@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import NoSSR from "react-no-ssr";
 import { ReactEditor, Slate } from "slate-react";
 import {
   editorDataToMarkdown,
@@ -30,7 +31,7 @@ Nice!
   const editor = useMarkdownEditable();
 
   return (
-    <>
+    <NoSSR>
       <h1>Rich Text Editor</h1>
       <div className={styles.compare_pane}>
         <h3>Editor</h3>
@@ -41,13 +42,13 @@ Nice!
             setEditorData(v);
           }}
         >
-          <MarkdownEditable autoFocus className={styles.editor} />
+          <MarkdownEditable className={styles.editor} />
         </Slate>
       </div>
       <button
         onClick={() => {
           editor.insertFragment(
-            markdownToEditorData("@USER-daa968aa-e7ad-4d99-98a6-c5d8a468b0e5")
+            markdownToEditorData("@USER-daa968aa-e7ad-4d99-98a6-c5d8a468b0e5 ")
           );
           ReactEditor.focus(editor);
         }}
@@ -65,6 +66,6 @@ Nice!
           <MarkdownToHtml value={markdown} />
         </div>
       </div>
-    </>
+    </NoSSR>
   );
 }
