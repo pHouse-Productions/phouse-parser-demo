@@ -2,20 +2,18 @@ import {
   alt,
   anyChar,
   eof,
-  join,
   not,
   ParserContext,
   ParserWithAction,
   plus,
   PStream,
-  range,
   repeat,
-  seq,
   seq1,
   StringPStream,
   sym,
 } from "phouse-parser";
 import React, { FC, ReactNode, useMemo } from "react";
+import { uuid } from "../utils/parsers";
 
 const symbols = {
   eol: alt(["\n", eof()]),
@@ -38,23 +36,8 @@ const symbols = {
     "`",
   ]),
 
-  hex: alt([range("0", "9"), range("a", "f"), range("A", "F")]),
-  uuid: join(
-    seq([
-      join(repeat(sym("hex"), undefined, 8, 8)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 12, 12)),
-    ])
-  ),
-
   mention: alt([sym("userMention")]),
-  userMention: seq1(1, ["@USER-", sym("uuid")]),
+  userMention: seq1(1, ["@USER-", uuid]),
 
   text_line: seq1(0, [repeat(sym("text")), sym("eol")]),
 

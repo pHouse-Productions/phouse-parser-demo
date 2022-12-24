@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Slate } from "slate-react";
+import { ReactEditor, Slate } from "slate-react";
 import {
   editorDataToMarkdown,
   MarkdownEditable,
@@ -41,7 +41,7 @@ Nice!
             setEditorData(v);
           }}
         >
-          <MarkdownEditable className={styles.editor} />
+          <MarkdownEditable autoFocus className={styles.editor} />
         </Slate>
       </div>
       <button
@@ -49,6 +49,7 @@ Nice!
           editor.insertFragment(
             markdownToEditorData("@USER-daa968aa-e7ad-4d99-98a6-c5d8a468b0e5")
           );
+          ReactEditor.focus(editor);
         }}
       >
         Add @

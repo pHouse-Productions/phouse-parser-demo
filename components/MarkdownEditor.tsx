@@ -3,14 +3,11 @@ import {
   alt,
   anyChar,
   eof,
-  join,
   not,
   ParserContext,
   ParserWithAction,
   PStream,
-  range,
   repeat,
-  seq,
   seq1,
   StringPStream,
   sym,
@@ -26,29 +23,14 @@ import {
   withReact,
 } from "slate-react";
 import { EditableProps } from "slate-react/dist/components/editable";
+import { uuid } from "../utils/parsers";
 
 const editorMdSymbols = {
   eol: alt(["\n", eof()]),
   plain: not(sym("eol"), anyChar()),
   text: alt([sym("mention"), sym("plain")]),
-
-  hex: alt([range("0", "9"), range("a", "f"), range("A", "F")]),
-  uuid: join(
-    seq([
-      join(repeat(sym("hex"), undefined, 8, 8)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 12, 12)),
-    ])
-  ),
-
   mention: alt([sym("userMention")]),
-  userMention: seq1(1, ["@USER-", sym("uuid")]),
+  userMention: seq1(1, ["@USER-", uuid]),
 
   text_line: seq1(0, [repeat(sym("text")), sym("eol")]),
   START: repeat(alt([sym("text_line")])),
