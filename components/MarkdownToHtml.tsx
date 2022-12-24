@@ -2,20 +2,18 @@ import {
   alt,
   anyChar,
   eof,
-  join,
   not,
   ParserContext,
   ParserWithAction,
   plus,
   PStream,
-  range,
   repeat,
-  seq,
   seq1,
   StringPStream,
   sym,
 } from "phouse-parser";
 import React, { FC, ReactNode, useMemo } from "react";
+import { uuid } from "../utils/parsers";
 
 const symbols = {
   eol: alt(["\n", eof()]),
@@ -25,101 +23,27 @@ const symbols = {
   text: alt([
     sym("bold"),
     sym("italics"),
-    // sym("strike_through"),
     sym("code"),
-    // sym("image"),
-    // sym("link"),
     sym("mention"),
     sym("plain"),
   ]),
 
   bold: seq1(1, ["**", plus(not("**", sym("text"))), "**"]),
   italics: seq1(1, ["*", plus(not("*", sym("text"))), "*"]),
-  // strike_through: seq1(1, ["~~", plus(not("~~", sym("text"))), "~~"]),
   code: seq1(1, [
     "`",
     plus(not(alt(["`", sym("mention")]), sym("plain"))),
     "`",
   ]),
 
-  hex: alt([range("0", "9"), range("a", "f"), range("A", "F")]),
-  uuid: join(
-    seq([
-      join(repeat(sym("hex"), undefined, 8, 8)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 4, 4)),
-      "-",
-      join(repeat(sym("hex"), undefined, 12, 12)),
-    ])
-  ),
-
   mention: alt([sym("userMention")]),
-  userMention: seq1(1, ["@USER-", sym("uuid")]),
-
-  // image: seq(["![", until("]("), until(")")]),
-  // link: seq([
-  //   seq1(1, ["[", plus(not("]", sym("text"))), "]"]),
-  //   seq1(1, ["(", until(")")]),
-  // ]),
+  userMention: seq1(1, ["@USER-", uuid]),
 
   text_line: seq1(0, [repeat(sym("text")), sym("eol")]),
 
-  // tiny_header: seq1(1, ["#### ", sym("text_line")]),
-  // small_header: seq1(1, ["### ", sym("text_line")]),
-  // medium_header: seq1(1, ["## ", sym("text_line")]),
-  // big_header: seq1(1, ["# ", sym("text_line")]),
+  line: alt([sym("text_line")]),
 
-  line: alt([
-    // sym("tiny_header"),
-    // sym("small_header"),
-    // sym("medium_header"),
-    // sym("big_header"),
-    sym("text_line"),
-  ]),
-
-  block: alt([
-    // sym("generic_list"),
-    // sym("numbered_list"),
-    // sym("quote"),
-    // sym("table"),
-    sym("code_block"),
-    sym("line"),
-  ]),
-
-  // generic_list: plus(
-  //   seq1(1, ["* ", repeat(not(alt([sym("eol"), "* "]), sym("line")))])
-  // ),
-
-  // numbered_list_symbol: seq([plus(range("0", "9")), ". "]),
-  // numbered_list: plus(
-  //   seq1(1, [
-  //     sym("numbered_list_symbol"),
-  //     repeat(not(alt([sym("eol"), sym("numbered_list_symbol")]), sym("line"))),
-  //   ])
-  // ),
-
-  // quote: seq1(1, [">", repeat(not(alt([sym("eol"), ">"]), sym("line")))]),
-
-  // table_row: seq1(1, [
-  //   "|",
-  //   plus(seq1(0, [repeat(not("|", sym("text"))), "|"])),
-  //   repeat(" "),
-  //   sym("eol"),
-  // ]),
-  // table: seq([
-  //   sym("table_row"),
-  //   seq([
-  //     "|",
-  //     plus(seq([plus(alt(["-", " "])), "|"])),
-  //     repeat(" "),
-  //     sym("eol"),
-  //   ]),
-  //   repeat(sym("table_row")),
-  // ]),
+  block: alt([sym("code_block"), sym("line")]),
 
   code_block: seq1(1, [
     "```",
@@ -171,6 +95,8 @@ const actions: Actions = {
   },
 };
 
+export type MarkdownTypes = keyof Actions;
+
 const toReactNode = (v: unknown): ReactNode => {
   if (typeof v === "string") return v;
   if (Array.isArray(v)) {
@@ -216,9 +142,9 @@ const parseMarkdown = (str: string) => {
   return result?.value() as ReactNode;
 };
 
-export const FromMarkdown: FC<{ mde: string }> = ({ mde }) => {
+export const MarkdownToHtml: FC<{ value: string }> = ({ value }) => {
   const node = useMemo(() => {
-    return parseMarkdown(mde);
-  }, [mde]);
+    return parseMarkdown(value);
+  }, [value]);
   return <>{node}</>;
 };
