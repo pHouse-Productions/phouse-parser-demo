@@ -12,4 +12,5 @@
 .editor {
   min-height: 400px;
   padding: 4px;
+  border: 1px solid black;
 }

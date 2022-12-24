@@ -1,4 +1,3 @@
-import isEqual from "fast-deep-equal";
 import {
   alt,
   anyChar,
@@ -26,17 +25,13 @@ const symbols = {
   text: alt([
     sym("bold"),
     sym("italics"),
-    // sym("strike_through"),
     sym("code"),
-    // sym("image"),
-    // sym("link"),
     sym("mention"),
     sym("plain"),
   ]),
 
   bold: seq1(1, ["**", plus(not("**", sym("text"))), "**"]),
   italics: seq1(1, ["*", plus(not("*", sym("text"))), "*"]),
-  // strike_through: seq1(1, ["~~", plus(not("~~", sym("text"))), "~~"]),
   code: seq1(1, [
     "`",
     plus(not(alt(["`", sym("mention")]), sym("plain"))),
@@ -61,66 +56,11 @@ const symbols = {
   mention: alt([sym("userMention")]),
   userMention: seq1(1, ["@USER-", sym("uuid")]),
 
-  // image: seq(["![", until("]("), until(")")]),
-  // link: seq([
-  //   seq1(1, ["[", plus(not("]", sym("text"))), "]"]),
-  //   seq1(1, ["(", until(")")]),
-  // ]),
-
   text_line: seq1(0, [repeat(sym("text")), sym("eol")]),
 
-  // tiny_header: seq1(1, ["#### ", sym("text_line")]),
-  // small_header: seq1(1, ["### ", sym("text_line")]),
-  // medium_header: seq1(1, ["## ", sym("text_line")]),
-  // big_header: seq1(1, ["# ", sym("text_line")]),
+  line: alt([sym("text_line")]),
 
-  line: alt([
-    // sym("tiny_header"),
-    // sym("small_header"),
-    // sym("medium_header"),
-    // sym("big_header"),
-    sym("text_line"),
-  ]),
-
-  block: alt([
-    // sym("generic_list"),
-    // sym("numbered_list"),
-    // sym("quote"),
-    // sym("table"),
-    sym("code_block"),
-    sym("line"),
-  ]),
-
-  // generic_list: plus(
-  //   seq1(1, ["* ", repeat(not(alt([sym("eol"), "* "]), sym("line")))])
-  // ),
-
-  // numbered_list_symbol: seq([plus(range("0", "9")), ". "]),
-  // numbered_list: plus(
-  //   seq1(1, [
-  //     sym("numbered_list_symbol"),
-  //     repeat(not(alt([sym("eol"), sym("numbered_list_symbol")]), sym("line"))),
-  //   ])
-  // ),
-
-  // quote: seq1(1, [">", repeat(not(alt([sym("eol"), ">"]), sym("line")))]),
-
-  // table_row: seq1(1, [
-  //   "|",
-  //   plus(seq1(0, [repeat(not("|", sym("text"))), "|"])),
-  //   repeat(" "),
-  //   sym("eol"),
-  // ]),
-  // table: seq([
-  //   sym("table_row"),
-  //   seq([
-  //     "|",
-  //     plus(seq([plus(alt(["-", " "])), "|"])),
-  //     repeat(" "),
-  //     sym("eol"),
-  //   ]),
-  //   repeat(sym("table_row")),
-  // ]),
+  block: alt([sym("code_block"), sym("line")]),
 
   code_block: seq1(1, [
     "```",
@@ -219,140 +159,9 @@ const parseMarkdown = (str: string) => {
   return result?.value() as ReactNode;
 };
 
-export const FromMarkdown: FC<{ mde: string }> = ({ mde }) => {
+export const MarkdownToHtml: FC<{ value: string }> = ({ value }) => {
   const node = useMemo(() => {
-    return parseMarkdown(mde);
-  }, [mde]);
+    return parseMarkdown(value);
+  }, [value]);
   return <>{node}</>;
-};
-
-type Symbol = keyof typeof symbols;
-type MarkdownToEditorActions = Partial<{
-  [k in Symbol]: (x: ParserContext, ps: PStream) => unknown;
-}>;
-const markdownToEditorActions: MarkdownToEditorActions = {
-  START: (x, ps) => {
-    let v = ps.value();
-    console.log(JSON.stringify(v, null, 2));
-    if (!Array.isArray(v)) {
-      console.log("dalkfasjf");
-      return;
-    }
-    return v.flat();
-  },
-  text_line: (x, ps) => {
-    const v = ps.value();
-    if (Array.isArray(v))
-      return [{ type: "paragraph", children: collapseChildren(v.flat()) }];
-    console.log("here???");
-  },
-  // userMention: (x, ps) => {
-  //   const userId = ps.value() as string;
-  //   return (
-  //     <a
-  //       href="https://google.com"
-  //       contentEditable={false}
-  //       data-user-id={userId}
-  //     >
-  //       @Joe
-  //     </a>
-  //   );
-  // },
-  bold: (x, ps) => {
-    const v = ps.value();
-    if (!Array.isArray(v)) {
-      console.log("not array?");
-      return;
-    }
-    return v.map((o) => ({ ...o, isBold: true }));
-  },
-  text: (x, ps) => {
-    const v = ps.value();
-    if (typeof v === "string") return { type: "text", text: ps.value() };
-    if (Array.isArray(v)) return v.flat();
-    return v;
-  },
-  italics: (x, ps) => {
-    const v = ps.value();
-    if (!Array.isArray(v)) {
-      console.log("not array?");
-      return;
-    }
-    return v.map((o) => ({ ...o, isItalic: true }));
-  },
-  // code_block: (x, ps) => {
-  //   return <pre>{toReactNode(ps.value())}</pre>;
-  // },
-  code: (x, ps) => {
-    const v = ps.value();
-    if (!Array.isArray(v)) {
-      console.log("not array?");
-      return;
-    }
-    return { type: "code", text: "`" + v.join("") + "`" };
-  },
-};
-
-const collapseChildren = (a: any[]) => {
-  const r = [];
-  for (const o of a) {
-    if (!r.length) {
-      r.push(o);
-      continue;
-    }
-
-    const { text: lastText, ...lastRest } = r[r.length - 1];
-    const { text, ...rest } = o;
-    if (isEqual(lastRest, rest)) {
-      r[r.length - 1].text += text;
-      continue;
-    }
-
-    r.push(o);
-  }
-
-  if (!r.length) r.push({ type: "text", text: "" });
-
-  return r;
-};
-
-// const toEditorNode = (v: unknown): EditorNode[] => {
-//   if (typeof v === "string") return [{ type: "text", text: v }];
-//   if (Array.isArray(v)) {
-//     return v
-//       .map(toEditorNode)
-//       .flat()
-//       .reduce<EditorNode[]>((a, c) => {
-//         const lastChild = a[a.length - 1];
-//         if (c.type === "text" && lastChild?.type === "text") {
-//           lastChild.text += c.text;
-//         } else {
-//           a.push(c);
-//         }
-//         return a;
-//       }, []);
-//   }
-//   if (typeof v === "object") {
-//     return [v as EditorNode];
-//   }
-//   return [];
-// };
-
-export const parseMarkdownToEditor = (str: string) => {
-  const keys = Object.keys(symbols) as (keyof typeof symbols)[];
-  const parsersWithAction = new Map(
-    keys.map((name) => [
-      name,
-      markdownToEditorActions[name]
-        ? new ParserWithAction(symbols[name], markdownToEditorActions[name]!)
-        : symbols[name],
-    ])
-  );
-
-  const ps = new StringPStream({ pos: 0, str, value: null });
-  const start = parsersWithAction.get("START");
-  const x = new ParserContext();
-  x.set("grammarMap", parsersWithAction);
-  const result = start?.parse(x, ps);
-  return result?.value() as ReactNode;
 };
